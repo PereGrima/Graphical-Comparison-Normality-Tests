@@ -1,0 +1,72 @@
+# Drawing the curves for the tests comparison 
+In general, type II errors for each distribution must be previously calculated and saved in a file with the name: 
+
+**[Test acronym]_m[mosaic size]_n[sample size].txt**
+
+This is not included in this program because the computing time is very long. Here we use three files previously created that are included in the supplemental online material:
+
+-**LI_m101_n100.txt** (Lillieford test in 101x101 mosaic and for samples of size n = 100)
+
+-**CVM_m101_n100.txt** (Cramer- Vom Misses test in 101x101 mosaic and for samples of size n = 100)
+
+-**AD_m101_n100.txt** (Anderson-Darling test in 101x101 mosaic and for samples of size n = 100)
+
+These files or other similar for other tests, mosaic size or sample size can be created with the code included in the file "Calculing type II errors.html", which can also be found in the supplemental online material.
+
+The mosaic size (*m*) and the sample size (*n*) are needed to identify these files.
+
+```{r, fig.height=8}
+m = 101    # Mosaic size
+n = 100    # Sample size
+
+```
+
+Also, it is necessary to indicate which tests are to be represented. The acronym of the test is included in the array *tests*. The description to be included in the legend must be included in the *legends* array. The color used for this test is specified in the *co* array. Any of these values can be changed for other tests.
+
+```{r}
+tests=c("LI","CVM","AD")
+legends=c("Lillefords","Cramer-Von Mises","Anderson-Darling")
+co=c("magenta4","coral2","darkgreen")
+```
+The variable *typeIIerrorlevel* indicates the value of the type II error to draw in the mosaic. Cells inside this line have a type II error greater than this value. In our paper we use *typeIIerrorlevel=0.5*, but this value can be changed if desired. 
+
+```{r}
+typeIIerrorlevel=0.5
+```
+
+Below is the rest of the code. This part should not be changed.
+
+Copying all the code lines and executing them as an R script will produce the figure at the end. Do not forget to correctly specify the directory where the *.txt* files are located
+
+```{r}
+
+par(mar=c(3,0.1,3,0.1), oma=c(0,0,0,0), mfrow=c(1,1))
+plot (NULL, xlim=c(0.5,m+0.5), ylim=c(0.5,m+0.5), yaxs="i", xaxs="i", xaxt='n', yaxt='n', xlab="",ylab="")
+grid(m,m,lwd=1)
+title(paste0('n = ',n), line = 1, cex.main=1.8, font.main=1)
+legend("topleft",legend=legends,col=co,lty=1,lwd=2)
+
+typeIIerrorCurve=function(typeIIerror,co,typeIIerrorlevel,m){
+  for (i in 1:m) {
+    for (j in 1:m) {
+      if (i<m) {
+        if ((typeIIerror[i,j] < typeIIerrorlevel) & (typeIIerror[i+1,j] >= typeIIerrorlevel)) segments(j-0.5, m+1-i-0.5, j+0.5, m+1-i-0.5, lty=1, col=co, lwd=2)
+        if ((typeIIerror[i,j] >= typeIIerrorlevel) & (typeIIerror[i+1,j] < typeIIerrorlevel)) segments(j-0.5, m+1-i-0.5, j+0.5, m+1-i-0.5, lty=1, col=co, lwd=2)
+      }
+      if (j<m) {
+        if (typeIIerror[i,j] < typeIIerrorlevel & typeIIerror[i,j+1] >= typeIIerrorlevel) segments(j+0.5,m+1-i-0.5,j+0.5,m+1-i+0.5, lty=1, col=co, lwd=2)
+        if (typeIIerror[i,j] >= typeIIerrorlevel & typeIIerror[i,j+1] < typeIIerrorlevel) segments(j+0.5,m+1-i+0.5,j+0.5,m+1-i-0.5, lty=1, col=co, lwd=2)
+        }
+      }
+  }
+  segments(m/2, m/2, m/2+1, m/2,col="black", lty="solid", lwd=1)
+  segments(m/2, m/2, m/2, m/2+1,col="black", lty="solid", lwd=1)
+  segments(m/2, m/2+1, m/2+1, m/2+1,col="black", lty="solid", lwd=1)
+  segments(m/2+1, m/2, m/2+1, m/2+1,col="black", lty="solid", lwd=1)
+}
+
+for (i in 1:length(tests)){
+    typeIIerror <- read.table(paste0(tests[i],"_m",m,"_n",n,".txt"), header=FALSE)
+    typeIIerrorCurve(typeIIerror,co[i],typeIIerrorlevel,m)
+}
+```

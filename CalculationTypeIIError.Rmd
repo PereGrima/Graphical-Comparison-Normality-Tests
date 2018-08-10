@@ -1,0 +1,93 @@
+# Calculation of Type II Error for a given test and sample size
+
+You can set the sample size in the **n** variable. The variable *m* is the dimension of the mosaic (i.e. the number of squares in each row and column). You can change the number of simulation iterations to calculate the type II error in each cell by changing *nsim*. By default, the significance level to solve the test, *siglevel*, is set to *0.05*
+
+We use here a mosaic size *m = 11*. With this size it takes about 4.25 minutes to produce the file (using a computer with an Intel i7 @ 3.50GHz processor). With *m = 101*, the size used for files like the ones attached, the time is about 6 hours.
+
+```{r}
+n = 100         # Sample size
+m = 11          # n: mosaic size (nxn)
+nsim = 10000    # nsim: number of simulations in each cell
+siglevel = 0.05 # siglevel: significance level of the normality test
+```
+
+There are several possibilities for the test to use in the calculations. Some options with their implementation are listed below.
+
+<p style="font-family: verdana">
+**# Lillefords Test**<br />
+  library(nortest) <br />
+  nomtest = "LI" <br />
+  test = function(x) lillie.test(x)$p.value <br />
+
+**# Cramer-Von Mises Test**<br /> 
+  library(nortest)  <br />
+  nomtest = "CVM"  <br />
+  test = function(x) cvm.test(x)$p.value  <br />
+
+**# Shapiro-Wilks**<br />
+  library(fBasics)  <br />
+  nomtest = "SW"  <br />
+  test = function(x) shapiroTest(x)@test$p.value  <br />
+  
+**# Kolmogorov-Smirnov Test**<br />
+  library(fBasics)  <br />
+  nomtest = "KS"  <br />
+  test = function(x) ksnormTest(x)@test$p.value[1]  <br />
+  
+**# Jarque-Bera Test**<br />
+  library(fBasics)  <br />
+  nomtest = "JB"  <br />
+  test = function(x) jarqueberaTest(x)@test$p.value  <br />
+  
+**# Chi-Square Test**<br />
+  library(fBasics)  <br />
+  nomtest = "CSQ"  <br />
+  test = function(x) pchiTest(x)@test$p.value[1]  <br />
+   
+**# D'Agostino-Pearson Test**<br />
+  library(fBasics)  <br />
+  nomtest = "DP"  <br />
+  test = function(x) dagoTest(x)@test$p.value[1]  <br />
+  
+**# Your own test**<br />
+You only have to implement a function named *test* that calculates the p-value given the sample. You also need to specify an acronym *nomtest*, to identifie this new test.<br />
+  *nomtest = "NewTest"*... (identifier of the test, prefix of the file)<br />
+  *test = function(x) ...* (function implementing the test, given a sample must return the p-value from the normality test)
+</p>
+## Example with the Anderson-Darling Test
+
+Calculation of the type II errors for each cell in the mosaic. The values are saved in a file with the same structure as the mosaic. Each value represents the percentatge of times in the simulation for that cell in which the null hypothesis has not been refused (i.e. type II error)
+
+```{r, results="hide", eval=FALSE}
+library(nortest)
+nomtest="AD"
+test=function(x) ad.test(x)$p.value
+
+####Random generation for SEPD
+rsepd=function(n,mu=0,sigma=1,alpha=0.5,p=2){
+  kp=1/(2*gamma(1+1/p)*p^(1/p))
+  u=runif(n)
+  w=rgamma(n,shape=1/p,scale=1)
+  y=ifelse(u>alpha,1-alpha,-alpha)*(w^(1/p))/gamma(1+1/p)
+  y=y/kp
+  A=2*p^(1/p)*((1-alpha)^2-alpha^2)*gamma(2/p)/gamma(1/p)
+  A2=(2*p^(1/p))^2*((1-alpha)^3+alpha^3)*gamma(3/p)/gamma(1/p)
+  B=sqrt(A2-A^2)
+  mu+sigma*(y-A)/B
+}
+
+alpha=(0:(m-1))/(m-1)
+j=(log10(50)/log10(2))^(1/(m/2-0.5))
+p=c(1,2^(1/(j^(((m-3)/2):1))),2,2^(j^((1:(m/2-0.5)))))
+
+ftypeIIerror=function(i){
+  ysim=matrix(rsepd(n*nsim,mu=0,sigma=1,alpha=alpha[i[1]],p=p[i[2]]),nc=n)
+  setTxtProgressBar(pb, ((i[2]-1)*m+i[1])/(m*m))
+  mean(apply(ysim,1,function(el) test(el)>siglevel))
+}
+
+pb <- txtProgressBar(style=3)
+typeIIerror=matrix(apply(expand.grid(1:m,1:m),1,ftypeIIerror),nc=m,byrow=T)
+write.table(typeIIerror, paste0(nomtest,"_m",m,"_n",n,".txt"),row.names=F,col.names=F)
+```
+
